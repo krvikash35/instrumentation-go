@@ -19,6 +19,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -26,9 +27,9 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
 
@@ -41,8 +42,10 @@ import (
 
 func initTracer() (*sdktrace.TracerProvider, error) {
 
-	//stdout
-	//jaeger
+	//stdouttrace
+	//otlptrace(newrelic)
+	//otlptrace(jaeger)
+	//otlptrace(otlp)
 
 	// Create stdout exporter to be able to retrieve
 	// the collected spans.
@@ -67,20 +70,22 @@ func initTracer() (*sdktrace.TracerProvider, error) {
 }
 
 func initMeter() (*sdkmetric.MeterProvider, error) {
-	// stdout exporter
-	//otlp exporter
-	//prometheus exporter
+	//stdoutmetric
+	//otlpmetrichttp(newrelic)
+	//otlpmetrichttp(otlp)
+	//prometheus
 
 	// exp, err := stdoutmetric.New()
 
 	// exp, err := otlpmetrichttp.New(context.Background(), otlpmetrichttp.WithEndpoint("otlp.nr-data.net"), otlpmetrichttp.WithHeaders(map[string]string{"api-key": "d315a109547d9e69c95143935599d9cbe9deNRAL"}))
-	exp, err := prometheus.New()
+	exp, err := otlpmetrichttp.New(context.Background(), otlpmetrichttp.WithEndpoint("localhost:4318"), otlpmetrichttp.WithInsecure())
+	// exp, err := prometheus.New()
 	if err != nil {
 		return nil, err
 	}
 
-	// mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
-	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exp))
+	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp, sdkmetric.WithInterval(3*time.Second))))
+	// mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exp))
 	global.SetMeterProvider(mp)
 	return mp, nil
 }
