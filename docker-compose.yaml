@@ -7,18 +7,18 @@ services:
     ports:
       - 8081:8081
 
-  # grafana:
-  #   container_name: grafana
-  #   image: grafana/grafana-oss:9.5.1
-  #   ports:
-  #     - 3000:3000
+  grafana:
+    container_name: grafana
+    image: grafana/grafana-oss:9.5.1
+    ports:
+      - 3000:3000
 
-  # statsd-graphite:
-  #   container_name: statsd
-  #   image: graphiteapp/graphite-statsd:1.1.10-4
+  statsd-graphite:
+    container_name: statsd
+    image: graphiteapp/graphite-statsd:1.1.10-4
 
-  # prometheous:
-  #   container_name: prom
-  #   image: prom/prometheus
-  #   volumes:
-  #     - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+  prometheous:
+    container_name: prom
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
