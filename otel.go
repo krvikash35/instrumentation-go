@@ -22,12 +22,13 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
 
@@ -40,10 +41,15 @@ import (
 
 func initTracer() (*sdktrace.TracerProvider, error) {
 
+	//stdout
+	//jaeger
+
 	// Create stdout exporter to be able to retrieve
 	// the collected spans.
 	// exporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
-	exporter, err := otlptrace.New(context.Background(), otlptracehttp.NewClient(otlptracehttp.WithEndpoint("otlp.nr-data.net"), otlptracehttp.WithHeaders(map[string]string{"api-key": "d315a109547d9e69c95143935599d9cbe9deNRAL"})))
+	// exporter, err := otlptrace.New(context.Background(), otlptracehttp.NewClient(otlptracehttp.WithEndpoint("otlp.nr-data.net"), otlptracehttp.WithHeaders(map[string]string{"api-key": "d315a109547d9e69c95143935599d9cbe9deNRAL"})))
+	exporter, err := otlptrace.New(context.Background(), otlptracehttp.NewClient(otlptracehttp.WithEndpoint("localhost:4318"), otlptracehttp.WithInsecure()))
+
 	if err != nil {
 		return nil, err
 	}
@@ -61,14 +67,20 @@ func initTracer() (*sdktrace.TracerProvider, error) {
 }
 
 func initMeter() (*sdkmetric.MeterProvider, error) {
+	// stdout exporter
+	//otlp exporter
+	//prometheus exporter
 
 	// exp, err := stdoutmetric.New()
-	exp, err := otlpmetrichttp.New(context.Background(), otlpmetrichttp.WithEndpoint("otlp.nr-data.net"), otlpmetrichttp.WithHeaders(map[string]string{"api-key": "d315a109547d9e69c95143935599d9cbe9deNRAL"}))
+
+	// exp, err := otlpmetrichttp.New(context.Background(), otlpmetrichttp.WithEndpoint("otlp.nr-data.net"), otlpmetrichttp.WithHeaders(map[string]string{"api-key": "d315a109547d9e69c95143935599d9cbe9deNRAL"}))
+	exp, err := prometheus.New()
 	if err != nil {
 		return nil, err
 	}
 
-	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
+	// mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)))
+	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exp))
 	global.SetMeterProvider(mp)
 	return mp, nil
 }
@@ -106,11 +118,27 @@ func main() {
 		_, _ = io.WriteString(w, "Hello, world!\n")
 	}
 
-	otelHandler := otelhttp.NewHandler(http.HandlerFunc(helloHandler), "Hello")
+	otelHandler := otelhttp.NewHandler(WithRouteTag("/hello", http.HandlerFunc(helloHandler)), "Hello")
 
 	http.Handle("/hello", otelHandler)
+	http.Handle("/metrics", promhttp.Handler())
 	err = http.ListenAndServe(":7777", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// WithRouteTag is add custom function based on otelhttp.WithRouteTag
+// this is to be used temporarily pending https://github.com/open-telemetry/opentelemetry-go-contrib/pull/615 to be merged
+func WithRouteTag(route string, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attr := semconv.HTTPRouteKey.String(route)
+
+		span := trace.SpanFromContext(r.Context())
+		span.SetAttributes(attr)
+
+		labeler, _ := otelhttp.LabelerFromContext(r.Context())
+		labeler.Add(attr)
+		h.ServeHTTP(w, r)
+	})
 }

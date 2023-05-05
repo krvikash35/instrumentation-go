@@ -1,24 +1,49 @@
 version: '3'
 
 services:
-  app:
-    container_name: app
-    build: .
-    ports:
-      - 8081:8081
+  # app:
+  #   container_name: app
+  #   build: .
+  #   ports:
+  #     - 8081:8081
 
-  grafana:
-    container_name: grafana
-    image: grafana/grafana-oss:9.5.1
-    ports:
-      - 3000:3000
+  # grafana:
+  #   container_name: grafana
+  #   image: grafana/grafana-oss:9.5.1
+  #   ports:
+  #     - 3000:3000
 
-  statsd-graphite:
-    container_name: statsd
-    image: graphiteapp/graphite-statsd:1.1.10-4
+  # statsd-graphite:
+  #   container_name: statsd
+  #   image: graphiteapp/graphite-statsd:1.1.10-4
 
   prometheous:
-    container_name: prom
+    container_name: prometheus
     image: prom/prometheus
+    ports:
+      - 9090:9090
     volumes:
       - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+
+  jaeger:
+    image: jaegertracing/all-in-one
+    container_name: jaeger
+    command:
+      - "--memory.max-traces"
+      - "10000"
+      - "--query.base-path"
+      - "/jaeger/ui"
+      - "--prometheus.server-url"
+      - "http://${PROMETHEUS_ADDR}"
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    restart: unless-stopped
+    ports:
+      - "${JAEGER_SERVICE_PORT}:${JAEGER_SERVICE_PORT}"                    # Jaeger UI
+      - "4317"                           # OTLP gRPC default port
+      - 4318:4318                           # OTLP http default port
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - METRICS_STORAGE_TYPE=prometheus
