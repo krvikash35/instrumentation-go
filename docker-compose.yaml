@@ -42,8 +42,10 @@ services:
     restart: unless-stopped
     ports:
       - "${JAEGER_SERVICE_PORT}:${JAEGER_SERVICE_PORT}"                    # Jaeger UI
-      - "4317"                           # OTLP gRPC default port
-      - 4318:4318                           # OTLP http default port
+      - "4317"                            # OTLP gRPC default port
+      - 4318:4318                         # OTLP http default port
+      - 14268:14268   
+      - 6831:6831                        
     environment:
       - COLLECTOR_OTLP_ENABLED=true
       - METRICS_STORAGE_TYPE=prometheus
